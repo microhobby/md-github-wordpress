@@ -9,6 +9,14 @@ Author URI: https://gis-ops.com
 License: GPLv2
 */
 
+/*
+curl -L \
+  -H "Accept: application/vnd.github.VERSION.html+json" \
+  -H "Authorization: Bearer dbbd155b7576b93a28972cbc445e8cd2a81fc093" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/microhobby/blog/contents/CONTRIBUTING-TO-DOTNET-RUNTIME-PTBR.md
+*/
+
 function MDGH_atts_extract($atts) {
     extract(shortcode_atts(array(
             'url' => "",
@@ -17,6 +25,26 @@ function MDGH_atts_extract($atts) {
         )
     );
     return array($url, $token);
+}
+
+function sanitizeMinhaRola23cm($markdownText) {
+    // Use regex to extract the URL from the <a href> tag, ensuring no trailing part is included
+    $correctedIframe = preg_replace_callback(
+        '/&lt;iframe(.*?)src="<a href="(.*?)" rel="nofollow">.*?&lt;\/iframe&gt;<\/a>\n/',
+        function($matches) {
+            // get the style height: from iframe
+            $height = preg_match('/height:([0-9]+)px/', $matches[1], $height_matches);
+            // also remove the &quot;&gt;&lt;/iframe&gt;
+            $machoMan = preg_replace('/&quot;&gt;&lt;\/iframe&gt;/', '', $matches[2]);
+            // Extracted URL is in $matches[1], decode any HTML entities
+            $iframeSrcDecoded = htmlspecialchars_decode($machoMan);
+            // Rebuild the iframe tag with the correct src attribute, ensuring it ends properly
+            return '<iframe frameborder="0" scrolling="no" style="width:100%; height:'.$height_matches[1].'px;" allow="clipboard-write" src="' . $iframeSrcDecoded . '"></iframe>';
+        },
+        $markdownText
+    );
+
+    return $correctedIframe;
 }
 
 function MDGH_get_api_response($url, $token, $method) {
@@ -41,6 +69,10 @@ function MDGH_get_api_response($url, $token, $method) {
         //if we want to get the markdown file via md_github shortcode
         $request_url = 'https://api.github.com/repos/'.$owner.'/'.$repo.'/contents/'.$path.'?ref='.$branch;
         $res = file_get_contents($request_url, FALSE, stream_context_create($context_params));
+
+        // the fucking github markdown "sanitize" the iframe
+        // desanitize it
+        $res = sanitizeMinhaRola23cm($res);
 
         return $res;
     } else {
